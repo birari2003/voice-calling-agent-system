@@ -1,0 +1,41 @@
+{
+  "name": "@nagar-seva/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "node --import tsx --test test/*.test.ts",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:seed": "sequelize-cli db:seed:all",
+    "db:seed:admin": "sequelize-cli --seeders-path bootstrap-seeders db:seed --seed create-super-admin.cjs",
+    "test:integration": "bash scripts/test-integration.sh",
+    "db:seed:admin-from-env": "sequelize-cli --seeders-path bootstrap-seeders db:seed --seed create-admin-from-env.cjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "csv-parse": "^7.0.3",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.0.0",
+    "multer": "^2.5.0",
+    "mysql2": "^3.12.0",
+    "sequelize": "^6.37.5",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^22.10.5",
+    "sequelize-cli": "^6.6.2",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.2"
+  }
+}

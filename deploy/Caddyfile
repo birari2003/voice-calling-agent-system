@@ -1,0 +1,35 @@
+# Serves the dashboard and proxies the API on one HTTPS origin.
+# SITE_ADDRESS=localhost gives a locally-trusted certificate (tls internal);
+# a real domain (e.g. staging.example.gov.in) gets a Let's Encrypt certificate automatically.
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		# Microphone for voice sessions; camera lets citizens take photos on the upload page.
+		Permissions-Policy "microphone=(self), camera=(self), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+	}
+
+	request_body /api/* {
+		max_size 12MB
+	}
+
+	handle /api/* {
+		reverse_proxy backend:5000 {
+			header_up X-Request-Id {http.request.uuid}
+		}
+	}
+
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

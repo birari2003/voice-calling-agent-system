@@ -1,0 +1,96 @@
+# Staging stack: MySQL, migrations, API, speech service and the HTTPS web front (Caddy).
+#   cp deploy/staging.env.example deploy/staging.env   # then edit every value
+#   docker compose -f docker-compose.staging.yml --env-file deploy/staging.env up -d --build
+# Only Caddy publishes ports; the database, API and speech service stay on the internal network.
+name: nagarseva-staging
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  PORT: '5000'
+  DB_HOST: mysql
+  DB_PORT: '3306'
+  DB_NAME: ${DB_NAME:-nagar_seva}
+  DB_USER: ${DB_USER:-nagar_seva_app}
+  DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in deploy/staging.env}
+  APP_URL: ${PUBLIC_URL:?Set PUBLIC_URL, e.g. https://localhost:8443}
+  CORS_ORIGIN: ${PUBLIC_URL}
+  TRUST_PROXY: '1'
+  UPLOAD_DIR: /app/backend/storage/uploads
+  AI_SERVICE_URL: http://ai-service:8001
+  AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN (24+ random characters)}
+  REPORT_UTC_OFFSET: ${REPORT_UTC_OFFSET:-+05:30}
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-nagar_seva}
+      MYSQL_USER: ${DB_USER:-nagar_seva_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -u root -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    build: { context: ., dockerfile: backend/Dockerfile, target: migrate }
+    environment:
+      <<: *backend-env
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      mysql: { condition: service_healthy }
+    restart: 'no'
+
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile, target: runtime }
+    restart: unless-stopped
+    environment: *backend-env
+    volumes:
+      - uploads:/app/backend/storage/uploads
+    depends_on:
+      mysql: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  ai-service:
+    build: { context: ai-service }
+    restart: unless-stopped
+    environment:
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      PRELOAD_MODELS: ${PRELOAD_MODELS:-false}
+      STT_PROVIDER: ${STT_PROVIDER:-whisper}
+      SARVAM_API_KEY: ${SARVAM_API_KEY:-}
+      TTS_PROVIDER: ${TTS_PROVIDER:-mms}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-JBFqnCBsd6RMkjVDRZzb}
+      STT_FALLBACK_TO_LOCAL: ${STT_FALLBACK_TO_LOCAL:-true}
+    volumes:
+      - speech-models:/models
+    deploy:
+      resources:
+        limits: { memory: 3g }
+
+  web:
+    build: { context: ., dockerfile: frontend/Dockerfile }
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    ports:
+      - '${HTTPS_PORT:-8443}:443'
+      - '${HTTP_PORT:-8080}:80'
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      backend: { condition: service_healthy }
+
+volumes:
+  mysql-data:
+  uploads:
+  speech-models:
+  caddy-data:

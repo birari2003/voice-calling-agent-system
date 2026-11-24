@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/storage
+backups
+test-results
+playwright-report
+ai-service/.venv
+**/__pycache__
+**/.pytest_cache
+.git
+*.md
+!README.md

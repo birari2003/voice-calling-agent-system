@@ -1,0 +1,7 @@
+NagarSeva_Project_Blueprint.md
+node_modules/
+**/dist/
+package-lock.json
+ai-service/.venv/
+**/__pycache__/
+**/.pytest_cache/

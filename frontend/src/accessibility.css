@@ -1,0 +1,107 @@
+/* Phase 8 accessibility and responsive fixes, loaded last.
+   Muted text must meet WCAG 2.1 AA (4.5:1). #5f6e73 measures 4.70–5.30 against every
+   background it sits on (#fff, #f8f9fa, #f4f7f5, #eef2f2, #fafbfc, #fff9e9). */
+:root {
+  --text-muted-accessible: #5f6e73;
+}
+.nav-heading,
+.nav-soon,
+.org-switcher small,
+.page-footer span,
+.login-footer span,
+.complaints-heading p,
+.citizens-heading p,
+.citizen-footnote,
+.citizen-footnote span,
+.complaint-footnote,
+.table-count,
+.complaint-count,
+.table-pagination span,
+.complaint-pagination span,
+.citizen-table td > span,
+.citizen-table th,
+.complaint-table th,
+.complaint-table td small,
+.studio-muted,
+.studio-setup code,
+.public-upload-note,
+.public-upload-ticket,
+kbd {
+  color: var(--text-muted-accessible);
+}
+.empty-citizen-note {
+  color: #7a5e1f;
+}
+/* Reports: the chart guidance's muted ink (#898781) is 3.6:1, too faint for text. */
+.reports-page,
+.campaign-control {
+  --ink-muted: #6b6a65;
+}
+
+/* Responsive: flex children may shrink below their content, so wide tables scroll inside
+   their own panel instead of pushing the whole page sideways on phones. */
+.main-column,
+.page-content {
+  min-width: 0;
+}
+.page-header,
+.page-header-actions {
+  flex-wrap: wrap;
+}
+.citizen-search kbd,
+.table-state > span:last-child,
+.public-upload-brand small {
+  color: var(--text-muted-accessible);
+}
+
+/* Visually hidden labels are absolutely positioned. Give table scrollers a positioning
+   context so those labels are clipped with the table instead of widening the page. */
+.citizen-table-scroll,
+.complaint-table-scroll {
+  position: relative;
+}
+.sr-only {
+  margin: -1px;
+  padding: 0;
+  border: 0;
+}
+
+/* Table secondary text and status pills: same hues, darkened just enough for 4.5:1
+   against each pill's own background (measured 4.60–4.71). */
+.citizen-person small,
+.locality-cell small,
+.status-stack small,
+.assignee-cell {
+  color: var(--text-muted-accessible);
+}
+.complaint-date {
+  color: #69777c;
+}
+.complaint-status.acknowledged {
+  color: #507191;
+}
+.complaint-status.assigned {
+  color: #6e659a;
+}
+.complaint-status.in_progress {
+  color: #40748a;
+}
+.complaint-status.closed {
+  color: #666f73;
+}
+.complaint-status.reopened {
+  color: #94653a;
+}
+.session-badge.neutral {
+  color: #5e6e72;
+}
+/* Citizen eligibility badges (measured 4.62–4.64 against their own backgrounds). */
+.status-badge.not-authorized {
+  color: #657073;
+}
+.status-badge.opted-out {
+  color: #9e5f43;
+}
+.status-badge.inactive {
+  color: #666e71;
+}

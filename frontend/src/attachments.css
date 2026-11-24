@@ -1,0 +1,210 @@
+/* Phase 6: complaint photos and citizen upload page */
+.photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.photo-empty {
+  margin-top: 12px;
+}
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.photo-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e1e8e6;
+  border-radius: 8px;
+  background: #f4f7f6;
+  color: #8a9a9e;
+}
+.photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-thumb:hover,
+.photo-thumb:focus-visible {
+  border-color: #8dbdaa;
+  box-shadow: 0 0 0 2px #e6f5ee;
+}
+.photo-source {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: rgba(19, 44, 53, 0.72);
+  color: #fff;
+  font-size: 11px;
+}
+.photo-viewer {
+  width: min(100%, 900px);
+}
+.photo-viewer .modal-header h2 {
+  overflow-wrap: anywhere;
+}
+.photo-viewer-body {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  overflow: auto;
+  padding: 16px;
+  background: #f4f6f6;
+}
+.photo-viewer-body img {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 6px;
+  image-rendering: auto;
+}
+.upload-link-created {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #cfe6da;
+  border-radius: 8px;
+  background: #f3faf6;
+  color: #33584a;
+  font-size: 13px;
+}
+.upload-link-created p,
+.upload-link-created small {
+  margin: 0;
+}
+.upload-link-created small {
+  color: #85692a;
+}
+.upload-link-row {
+  display: flex;
+  gap: 8px;
+}
+.upload-link-row input {
+  min-width: 0;
+  flex: 1;
+  height: 35px;
+  padding: 0 10px;
+  border: 1px solid #d6e3de;
+  border-radius: 7px;
+  background: #fff;
+  color: #2c3c41;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.upload-links {
+  margin-top: 14px;
+}
+.upload-links h3 {
+  margin: 0 0 6px;
+  color: #4d6166;
+  font-size: 13px;
+}
+.upload-links ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.upload-links li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #66787d;
+  font-size: 12px;
+}
+.public-upload {
+  min-height: 100vh;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 18px;
+  padding: 28px 16px;
+  background: #f4f7f5;
+}
+.public-upload-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #17313a;
+  font-size: 18px;
+  font-weight: 750;
+}
+.public-upload-brand small {
+  display: block;
+  color: #6c7f84;
+  font-size: 12px;
+  font-weight: 500;
+}
+.public-upload-brand .brand-mark {
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #267b63;
+  color: #fff;
+}
+.public-upload-card {
+  width: min(100%, 480px);
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid #e1e8e6;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(29, 52, 58, 0.06);
+  color: #3c4f54;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.public-upload-card h1 {
+  margin: 0;
+  color: #1f3238;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.public-upload-card p {
+  margin: 0;
+}
+.public-upload-ticket {
+  color: #5b6d72;
+  font-size: 14px;
+}
+.public-upload-button {
+  min-height: 52px;
+  font-size: 16px;
+}
+.public-upload-success {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #2a7a5b;
+  font-weight: 600;
+}
+.public-upload-note {
+  display: flex;
+  gap: 7px;
+  color: #6c7f84;
+  font-size: 13px;
+}
+.public-upload-note svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.public-upload-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.public-upload-state.error {
+  color: #a14e40;
+}

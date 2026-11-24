@@ -1,0 +1,794 @@
+openapi: 3.0.3
+info:
+  title: NagarSeva API
+  version: 0.1.0
+  description: 'Phase 0–8 endpoints. Authenticated endpoints are organization and role scoped. Error responses have the shape {error: {code, message, reference}}; reference equals the X-Request-Id response header. Some Phase 3 complaint endpoints are documented only in code.'
+servers:
+  - url: http://localhost:5000/api/v1
+paths:
+  /health:
+    get:
+      summary: Readiness (database and upload storage required; speech service reported, optional)
+      responses:
+        '200':
+          description: 'status, database, storage, speechService, uptimeSeconds, environment'
+        '503':
+          description: Database or storage is unavailable
+  /health/live:
+    get:
+      summary: Liveness (the API process is serving requests)
+      responses:
+        '200':
+          description: '{ status: ok }'
+  /auth/csrf:
+    get:
+      summary: Issue a CSRF token cookie for a browser session
+      responses:
+        '200':
+          description: CSRF token value; cookie is also set
+  /auth/login:
+    post:
+      summary: Sign in with email and password
+      description: Limited to 10 attempts per IP in a 15 minute window. Requires the CSRF cookie and x-csrf-token header.
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Signed in; sets an HttpOnly session cookie
+        '400':
+          description: Invalid request body
+        '401':
+          description: Invalid credentials or inactive account
+        '403':
+          description: CSRF or account validation failed
+        '429':
+          description: Login rate limit exceeded
+  /auth/me:
+    get:
+      summary: Return the current authenticated user and permissions
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Current user identity }
+        '401': { description: No valid session }
+  /auth/logout:
+    post:
+      summary: Revoke the current session and clear auth cookies
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Session revoked }
+        '403': { description: CSRF validation failed }
+  /auth/password:
+    post:
+      summary: Change the current user's password and revoke all sessions
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string, format: password }
+                newPassword: { type: string, format: password, minLength: 12 }
+      responses:
+        '204': { description: Password changed; all sessions revoked }
+        '400': { description: Current password invalid or new password does not meet policy }
+        '401': { description: No valid session }
+  /dashboard/overview:
+    get:
+      summary: Return organization-scoped dashboard overview
+      description: Requires dashboard:read. Metrics are null until their feature data modules exist.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Overview and explicit not-yet-available metrics }
+        '401': { description: No valid session }
+        '403': { description: User lacks dashboard:read }
+  /citizens:
+    get:
+      summary: Search and paginate organization citizens
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { in: query, name: search, schema: { type: string, maxLength: 120 } }
+        - { in: query, name: ward, schema: { type: string } }
+        - { in: query, name: language, schema: { type: string, enum: [as, hi, en] } }
+        - {
+            in: query,
+            name: status,
+            schema: { type: string, enum: [active, inactive, opted_out, authorized] },
+          }
+      responses:
+        '200': { description: Paginated citizen records }
+        '401': { description: No valid session }
+        '403': { description: User lacks citizens:read }
+    post:
+      summary: Create a citizen record
+      description: Requires citizens:manage. Authorization requires a consent source; a number alone does not grant contact permission.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string, maxLength: 160, nullable: true }
+                phone:
+                  {
+                    type: string,
+                    nullable: true,
+                    description: Indian mobile number,
+                    normalized to +91 format,
+                  }
+                whatsappNumber: { type: string, nullable: true }
+                preferredLanguage: { type: string, enum: [as, hi, en], default: as }
+                locality: { type: string, maxLength: 160, nullable: true }
+                ward: { type: string, maxLength: 40, nullable: true }
+                contactAuthorized: { type: boolean, default: false }
+                consentSource: { type: string, maxLength: 120, nullable: true }
+                optedOut: { type: boolean, default: false }
+                notes: { type: string, maxLength: 5000, nullable: true }
+      responses:
+        '201': { description: Citizen record created }
+        '400': { description: Validation failed }
+        '401': { description: No valid session }
+        '403': { description: User lacks citizens:manage or CSRF validation failed }
+        '409': { description: Duplicate phone in this organization }
+  /citizens/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: integer } }
+    get:
+      summary: Get a citizen in the authenticated user's organization
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Citizen record }
+        '404': { description: Citizen not found in this organization }
+    patch:
+      summary: Update a citizen record
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { type: object, description: Partial citizen fields, same fields as POST /citizens }
+      responses:
+        '200': { description: Updated citizen record }
+        '400': { description: Validation failed }
+        '404': { description: Citizen not found in this organization }
+    delete:
+      summary: Deactivate a citizen (soft deactivation)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204': { description: Citizen deactivated }
+        '404': { description: Citizen not found in this organization }
+  /citizens/import/preview:
+    post:
+      summary: Validate a CSV or XLSX import without writing records
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                mapping:
+                  {
+                    type: string,
+                    description: JSON object mapping citizen field names to file headers,
+                  }
+      responses:
+        '200': { description: Column suggestions, row preview, and valid/duplicate/invalid counts }
+        '400': { description: Unsupported or invalid file or mapping }
+        '413': { description: File exceeds 5 MB }
+  /citizens/import:
+    post:
+      summary: Import validated citizen rows from CSV or XLSX
+      description: Requires citizens:import. Import is organization-scoped and transactional; duplicates and invalid rows are skipped.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                mapping:
+                  {
+                    type: string,
+                    description: JSON object mapping citizen field names to file headers,
+                  }
+      responses:
+        '201': { description: Import counts and row outcomes }
+        '400': { description: Unsupported or invalid file or mapping }
+        '413': { description: File exceeds 5 MB }
+  /citizens/export:
+    get:
+      summary: Export organization citizen records as CSV
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: UTF-8 CSV file }
+        '401': { description: No valid session }
+        '403': { description: User lacks citizens:export }
+  /sessions:
+    get:
+      summary: List AI complaint sessions (newest first)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [active, ended] } }
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum:
+              [
+                complaint_created,
+                cancelled_by_citizen,
+                cancelled_by_staff,
+                handoff,
+                ended_without_complaint,
+              ]
+        - { name: citizenId, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: Paginated sessions without transcripts }
+        '403': { description: User lacks sessions:read }
+    post:
+      summary: Start a simulated text-mode session for a citizen
+      description: Blocked for inactive or opted-out citizens. A null language lets the assistant ask the citizen.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [citizenId]
+              properties:
+                citizenId: { type: integer }
+                language: { type: string, enum: [as, hi, en], nullable: true }
+                channel: { type: string, enum: [text, voice], default: text }
+      responses:
+        '201': { description: Session with opening assistant messages }
+        '400': { description: Invalid input or citizen not found }
+        '403': { description: User lacks sessions:run }
+        '409': { description: Citizen is inactive or opted out }
+  /sessions/{id}:
+    get:
+      summary: Session detail with collected fields and transcript
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200': { description: Session detail }
+        '404': { description: Session not found in this organization }
+  /sessions/{id}/transcript:
+    get:
+      summary: Ordered transcript messages with speaker labels
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200': { description: Transcript }
+  /sessions/{id}/turn:
+    post:
+      summary: Submit one citizen reply and receive the assistant response
+      description: >-
+        If the reply is an explicit "yes" to the read-back, the backend validates the collected
+        details and registers the complaint in the same transaction. Repeating a clientMessageId
+        returns the current session without processing the reply again.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 1000 }
+                clientMessageId: { type: string, pattern: '^[A-Za-z0-9_-]{8,64}$' }
+      responses:
+        '200': { description: Updated session; replayed is true for a repeated clientMessageId }
+        '409': { description: Session ended or not waiting for input }
+  /sessions/{id}/confirm:
+    post:
+      summary: Retry complaint registration for a session the citizen already confirmed
+      description: Returns 409 CONFIRMATION_REQUIRED unless the citizen said yes to the read-back. Idempotent.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200': { description: Session with linked complaint }
+        '409': { description: Not confirmed, or session ended }
+        '422': { description: Collected details are incomplete }
+  /sessions/{id}/cancel:
+    post:
+      summary: Cancel an active session (staff action); no complaint is created
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200': { description: Cancelled session }
+        '409': { description: Session already ended }
+  /sessions/{id}/complete:
+    post:
+      summary: End an active session before confirmation; idempotent for ended sessions
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200': { description: Ended session }
+        '409': { description: Citizen confirmed but the complaint is pending registration }
+  /sessions/{id}/audio-turn:
+    post:
+      summary: Submit one spoken citizen reply (voice sessions)
+      description: >-
+        The recording is transcribed by the local speech service and discarded. Transcriptions
+        that are empty, below STT_MIN_CONFIDENCE, in an unexpected script, or repetitive are not
+        used; the assistant asks the citizen to repeat instead. Accepted text is processed exactly
+        like POST /sessions/{id}/turn, with the confidence stored on the citizen message.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [audio]
+              properties:
+                clientMessageId: { type: string, pattern: '^[A-Za-z0-9_-]{8,64}$' }
+                audio:
+                  type: string
+                  format: binary
+                  description: WebM, Ogg, WAV, MP4 or MP3; max 5 MB and 60 seconds
+      responses:
+        '200':
+          { description: Updated session plus transcription (text, confidence, accepted, reason) }
+        '400': { description: Missing or unsupported audio }
+        '409': { description: Session ended or not waiting for input }
+        '422': { description: Audio could not be decoded or is too long }
+        '503': { description: Speech service unavailable; continue with typed replies }
+  /sessions/{id}/messages/{messageId}/speech:
+    get:
+      summary: Spoken audio (WAV) for an assistant message, synthesized on demand and not stored
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - { name: messageId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: WAV audio
+          content: { audio/wav: { schema: { type: string, format: binary } } }
+        '404': { description: Session or assistant message not found }
+        '503': { description: Speech service unavailable }
+  /complaints/{id}/attachments:
+    get:
+      summary: List photo metadata for a complaint the user can see
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Photos (no storage keys) with uploader and source }
+        '403': { description: User lacks attachments:read }
+        '404': { description: Complaint not found or not visible to this user }
+    post:
+      summary: Upload one photo (staff who can work on the complaint)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  {
+                    type: string,
+                    format: binary,
+                    description: 'JPG, PNG or WebP; MAX_UPLOAD_SIZE_MB',
+                  }
+      responses:
+        '201': { description: Stored photo metadata }
+        '400': { description: No photo provided }
+        '403': { description: User lacks attachments:upload }
+        '404': { description: Complaint not found or not assigned to this user }
+        '413': { description: Photo too large }
+        '415': { description: Not an allowed image, or type/extension/contents disagree }
+  /complaints/{id}/upload-links:
+    get:
+      summary: List citizen upload links for a complaint (no tokens)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Links with status active, expired, revoked or used }
+  /complaints/{id}/upload-link:
+    post:
+      summary: Create an expiring citizen upload link; the URL is returned only once
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '201': { description: Link URL, expiry and upload limit }
+        '409': { description: Complaint already has 3 active links }
+  /upload-links/{id}/revoke:
+    post:
+      summary: Revoke a citizen upload link (idempotent)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Revoked link }
+        '404': { description: Link not found or not manageable by this user }
+  /attachments/{id}/download:
+    get:
+      summary: Photo bytes for authorized users (audited; served with a sandboxing CSP)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: 'Image (image/jpeg, image/png or image/webp)' }
+        '404': { description: Photo not found or its complaint is not visible to this user }
+  /public/uploads/{token}:
+    get:
+      summary: Citizen upload page details (ticket ID, remaining uploads, expiry); no login
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Link details }
+        '410': { description: Link unknown, expired, revoked or used up (same response for all) }
+        '429': { description: Rate limited }
+    post:
+      summary: Upload one photo with a citizen link; no login or CSRF, the token is the credential
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo: { type: string, format: binary }
+      responses:
+        '201': { description: Remaining uploads for this link }
+        '410': { description: Link no longer valid }
+        '413': { description: Photo too large }
+        '415': { description: Not an allowed image }
+        '429': { description: Rate limited }
+  /campaigns:
+    get:
+      summary: List simulation campaigns with recipient counts by status
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Paginated campaigns }
+        '403': { description: User lacks campaigns:manage }
+    post:
+      summary: Create a draft simulation campaign
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 3, maxLength: 160 }
+                description: { type: string, nullable: true }
+                defaultLanguage: { type: string, enum: [as, hi, en], nullable: true }
+                channel: { type: string, enum: [text, voice], default: text }
+                maxAttempts: { type: integer, minimum: 1, maximum: 3, default: 1 }
+                targetFilter:
+                  type: object
+                  properties:
+                    wards: { type: array, items: { type: string }, maxItems: 20 }
+                    locality: { type: string, description: Substring match }
+                    language: { type: string, enum: [as, hi, en] }
+      responses:
+        '201': { description: Draft campaign }
+        '400': { description: Invalid settings }
+  /campaigns/{id}:
+    get:
+      summary: Campaign with recipient counts and exclusion reasons
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Campaign }
+        '404': { description: Not found in this organization }
+    patch:
+      summary: Edit a draft or ready campaign (clears any earlier eligibility preview)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Updated campaign }
+        '409': { description: Campaign is running or finished }
+  /campaigns/{id}/eligibility-preview:
+    post:
+      summary: Build the recipient list; eligible citizens become pending, excluded ones keep a reason
+      description: >-
+        Exclusion reasons are inactive, opted_out, invalid_number, missing_authorization (no
+        authorization flag, consent source or consent date) and duplicate (already waiting in
+        another live campaign). The campaign becomes ready only when 1–100 citizens are eligible.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Preview counts and the updated campaign }
+        '409': { description: Campaign is not a draft or ready }
+  /campaigns/{id}/start-simulation:
+    post:
+      summary: Start a ready campaign (re-checks eligibility first); no calls are placed
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Running campaign }
+        '409': { description: Not ready, or no eligible recipients remain }
+  /campaigns/{id}/pause:
+    post:
+      summary: Pause a running campaign; no new sessions can start
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Paused campaign }
+        '409': { description: Campaign is not running }
+  /campaigns/{id}/resume:
+    post:
+      summary: Resume a paused campaign
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Running (or completed, if nobody is waiting) campaign }
+        '409': { description: Campaign is not paused }
+  /campaigns/{id}/cancel:
+    post:
+      summary: Cancel; waiting recipients are skipped and open test sessions are ended
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Cancelled campaign }
+        '409': { description: Campaign already finished }
+  /campaigns/{id}/next-session:
+    post:
+      summary: Start the AI call studio session for the next pending recipient
+      description: Requires campaigns:manage and sessions:run. Recipients who are no longer eligible are skipped.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  { type: string, enum: [text, voice], description: Overrides the campaign default }
+      responses:
+        '201': { description: Session ID and recipient ID }
+        '409':
+          { description: Campaign not running, or no recipients waiting (NO_PENDING_RECIPIENTS) }
+  /campaigns/{id}/recipients:
+    get:
+      summary: Recipients with citizen, status, exclusion reason, attempts and last session outcome
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - name: status
+          in: query
+          schema:
+            { type: string, enum: [pending, in_progress, completed, failed, skipped, opted_out] }
+      responses:
+        '200': { description: Paginated recipients }
+  /reports/overview:
+    get:
+      summary: 'Key figures (complaints, awaiting review, resolved, sessions, hand-offs, live campaigns)'
+      description: Requires reports:read. Complaint figures are limited to assigned complaints unless the user has complaints:read_all.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200': { description: 'Data plus meta (from, to, utcOffset, scope, generatedAt)' }
+        '400': { description: Invalid or oversized date range (max 366 days) }
+  /reports/complaints-by-status:
+    get:
+      summary: Complaint counts by current status
+      description: Requires reports:read. Complaint figures are limited to assigned complaints unless the user has complaints:read_all.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200': { description: 'Data plus meta (from, to, utcOffset, scope, generatedAt)' }
+        '400': { description: Invalid or oversized date range (max 366 days) }
+  /reports/complaints-by-category:
+    get:
+      summary: Top 8 categories; the rest folded into Other
+      description: Requires reports:read. Complaint figures are limited to assigned complaints unless the user has complaints:read_all.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200': { description: 'Data plus meta (from, to, utcOffset, scope, generatedAt)' }
+        '400': { description: Invalid or oversized date range (max 366 days) }
+  /reports/complaints-by-ward:
+    get:
+      summary: Top 10 wards; the rest folded into Other
+      description: Requires reports:read. Complaint figures are limited to assigned complaints unless the user has complaints:read_all.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200': { description: 'Data plus meta (from, to, utcOffset, scope, generatedAt)' }
+        '400': { description: Invalid or oversized date range (max 366 days) }
+  /reports/complaints-over-time:
+    get:
+      summary: Complaints per local day, with zero-filled days
+      description: Requires reports:read. Complaint figures are limited to assigned complaints unless the user has complaints:read_all.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200': { description: 'Data plus meta (from, to, utcOffset, scope, generatedAt)' }
+        '400': { description: Invalid or oversized date range (max 366 days) }
+  /reports/sessions:
+    get:
+      summary: Session outcomes, languages, channels and average duration
+      description: Requires reports:read. Complaint figures are limited to assigned complaints unless the user has complaints:read_all.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200': { description: 'Data plus meta (from, to, utcOffset, scope, generatedAt)' }
+        '400': { description: Invalid or oversized date range (max 366 days) }
+  /reports/campaigns:
+    get:
+      summary: Completion of campaigns active in the range
+      description: Requires reports:read. Complaint figures are limited to assigned complaints unless the user has complaints:read_all.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200': { description: 'Data plus meta (from, to, utcOffset, scope, generatedAt)' }
+        '400': { description: Invalid or oversized date range (max 366 days) }
+  /reports/export/complaints.csv:
+    get:
+      summary: CSV of complaints in the range (same scope as reports; no citizen contact details; audited)
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ReportFrom'
+        - $ref: '#/components/parameters/ReportTo'
+      responses:
+        '200':
+          description: UTF-8 CSV with formula-neutralised cells
+          content: { text/csv: { schema: { type: string } } }
+  /complaints/{id}/transcript:
+    get:
+      summary: Transcript of the AI session that created this complaint
+      description: Available to anyone who can open the complaint (for example its assigned operator), without access to other sessions.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          {
+            description: 'Session ID, mode, channel, language and ordered messages; hasRecording is false',
+          }
+        '404': { description: Complaint not visible to this user, or not created from a session }
+  /ai/health:
+    get:
+      summary: Availability of dialogue, speech-to-text and text-to-speech components
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          {
+            description: Dialogue engine,
+            speech service reachability,
+            loaded models,
+            and minimum accepted speech confidence,
+          }
+  /ai/config:
+    get:
+      summary: Active questionnaire version and wording per language
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Questionnaire configuration }
+        '403': { description: User lacks settings:manage }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: nagar_session
+  parameters:
+    ReportFrom:
+      name: from
+      in: query
+      description: Inclusive local start date; defaults to 29 days before `to`
+      schema: { type: string, format: date }
+    ReportTo:
+      name: to
+      in: query
+      description: Inclusive local end date; defaults to today
+      schema: { type: string, format: date }
+    SessionId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CsrfHeader:
+      name: x-csrf-token
+      in: header
+      required: true
+      schema: { type: string }
