@@ -112,18 +112,13 @@ engine should later be reusable behind a telephony audio-stream adapter.
 -   Swagger/OpenAPI for API documentation
 -   Jest/Vitest + Supertest for tests
 
-### AI / Voice Service
+### Voice Service
 
-Keep the AI voice engine behind a clearly defined service boundary. A
-separate Python FastAPI service is recommended if the selected speech
-models require Python. - Speech-to-text: evaluate faster-whisper and
-AI4Bharat IndicConformer for Assamese, Hindi, and English. - LLM: local
-Ollama model for dialogue understanding and structured extraction. -
-Text-to-speech: evaluate AI4Bharat Indic-TTS / Indic-Parler-TTS or
-another model with acceptable Assamese output. - Browser audio:
-microphone capture and audio playback in the React simulated-call
-screen. - The backend remains authoritative for complaint validation and
-creation. The LLM must never write directly to MySQL.
+The Node.js backend calls ElevenLabs directly for speech-to-text and
+text-to-speech. Conversation decisions remain in the deterministic state
+machine, and the backend remains authoritative for complaint validation
+and creation. Browser audio supports local simulation; Exotel Voicebot
+provides bidirectional phone audio over WebSocket for real calls.
 
 ### Local Infrastructure
 
@@ -164,14 +159,10 @@ Node.js + Express Backend (MVC)
           |
           +---------- MySQL
           |
-          +---------- AI Voice Service (FastAPI, local)
-                         ├── Speech-to-Text
-                         ├── Dialogue / State Manager
-                         ├── LLM structured extraction
-                         └── Text-to-Speech
+          +---------- ElevenLabs STT / TTS APIs
+          |
+          +---------- Exotel Voicebot WebSocket
 
-Future only:
-Exotel → telephony adapter → same AI session engine
 WhatsApp Cloud API → webhook → attachment service
 ```
 
@@ -1371,7 +1362,7 @@ create, run, and roll back migrations.
 
 ### Phase 0 --- Repository and foundation
 
--   Create frontend, backend, and AI-service folders.
+-   Create frontend and backend folders.
 -   Set up TypeScript, linting, formatting, environment validation,
     Docker Compose, and README.
 -   Configure MySQL connection and migration tooling.

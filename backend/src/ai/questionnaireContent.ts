@@ -13,17 +13,15 @@ export const DEFAULT_QUESTIONNAIRE: QuestionnaireContent = {
     en: {
       greeting: 'Namaskar! Welcome to NagarSeva, the municipal complaint service.',
       disclosure:
-        'You are speaking with an AI assistant that registers municipal complaints. This is a test simulation: the written transcript is saved, and no audio is recorded. Say "stop" at any time to end without registering a complaint.',
+        'I am an AI assistant. Your complaint will be saved as text. Say "stop" anytime to end.',
       askIssue: 'What problem would you like to report?',
-      clarifyIssue:
-        'Please describe the problem in a little more detail, for example what is wrong and since when.',
+      clarifyIssue: 'Please answer only about the problem.',
       askLocation:
         'Where is the problem? Please tell the area, colony or road name, and the ward number if you know it.',
-      clarifyLocality:
-        'I could not understand the location. Please tell the area, colony or road name.',
+      clarifyLocality: 'Please answer only with the area, colony or road name.',
       askLandmark: 'What is the nearest landmark? Say "skip" if there is none.',
       askName: 'May I have your name, please?',
-      clarifyName: 'Please tell me your name using letters only.',
+      clarifyName: 'Please answer only with your name.',
       readBack:
         'Let me read back the details. Problem: {issue}. Location: {locality}{ward}{landmark}. Name: {name}.',
       readBackWard: ', ward {ward}',
@@ -47,15 +45,14 @@ export const DEFAULT_QUESTIONNAIRE: QuestionnaireContent = {
     },
     hi: {
       greeting: 'नमस्कार! नगरसेवा, नगर निगम शिकायत सेवा में आपका स्वागत है।',
-      disclosure:
-        'आप एक AI सहायक से बात कर रहे हैं जो नगर निगम की शिकायतें दर्ज करता है। यह एक परीक्षण सिमुलेशन है: बातचीत का लिखित रिकॉर्ड सहेजा जाता है, कोई ऑडियो रिकॉर्ड नहीं किया जाता। शिकायत दर्ज किए बिना समाप्त करने के लिए कभी भी "रुको" या "stop" कहें।',
+      disclosure: 'मैं एक AI सहायक हूँ। आपकी शिकायत लिखित रूप में दर्ज होगी। रोकने के लिए कभी भी "रुको" कहें।',
       askIssue: 'आप किस समस्या की शिकायत करना चाहते हैं?',
-      clarifyIssue: 'कृपया समस्या थोड़ा विस्तार से बताएं, जैसे क्या खराब है और कब से।',
+      clarifyIssue: 'कृपया केवल समस्या बताएं।',
       askLocation: 'समस्या कहाँ है? कृपया इलाका, कॉलोनी या सड़क का नाम और पता हो तो वार्ड नंबर बताएं।',
-      clarifyLocality: 'मैं स्थान समझ नहीं पाया। कृपया इलाके, कॉलोनी या सड़क का नाम बताएं।',
+      clarifyLocality: 'कृपया केवल इलाका, कॉलोनी या सड़क का नाम बताएं।',
       askLandmark: 'सबसे नज़दीकी पहचान का स्थान (लैंडमार्क) क्या है? अगर नहीं है तो "छोड़ें" कहें।',
       askName: 'कृपया अपना नाम बताएं।',
-      clarifyName: 'कृपया केवल अक्षरों में अपना नाम बताएं।',
+      clarifyName: 'कृपया केवल अपना नाम बताएं।',
       readBack: 'मैं विवरण दोहराता हूँ। समस्या: {issue}। स्थान: {locality}{ward}{landmark}। नाम: {name}।',
       readBackWard: ', वार्ड {ward}',
       readBackLandmark: ', {landmark} के पास',
@@ -77,14 +74,14 @@ export const DEFAULT_QUESTIONNAIRE: QuestionnaireContent = {
     as: {
       greeting: 'নমস্কাৰ! নগৰসেৱা, পৌৰ নিগমৰ অভিযোগ সেৱালৈ আপোনাক স্বাগতম।',
       disclosure:
-        'আপুনি পৌৰ অভিযোগ পঞ্জীয়ন কৰা এটা AI সহায়কৰ সৈতে কথা পাতি আছে। এইটো এটা পৰীক্ষামূলক ছিমুলেচন: কথা-বতৰাৰ লিখিত ৰেকৰ্ড সংৰক্ষণ কৰা হয়, কোনো অডিঅ’ ৰেকৰ্ড কৰা নহয়। অভিযোগ পঞ্জীয়ন নকৰাকৈ যিকোনো সময়ত বন্ধ কৰিবলৈ "বন্ধ" বা "stop" কওক।',
+        'মই এটা AI সহায়ক। আপোনাৰ অভিযোগ লিখিতভাৱে সংৰক্ষণ হ’ব। বন্ধ কৰিবলৈ যিকোনো সময়ত "বন্ধ" কওক।',
       askIssue: 'আপুনি কি সমস্যাৰ বিষয়ে অভিযোগ কৰিব বিচাৰে?',
-      clarifyIssue: 'অনুগ্ৰহ কৰি সমস্যাটো অলপ বিতংভাৱে কওক, যেনে কি বেয়া হৈছে আৰু কেতিয়াৰ পৰা।',
+      clarifyIssue: 'অনুগ্ৰহ কৰি কেৱল সমস্যাটো কওক।',
       askLocation: 'সমস্যাটো ক’ত? অনুগ্ৰহ কৰি অঞ্চল, কলনী বা পথৰ নাম আৰু জানিলে ৱাৰ্ড নম্বৰ কওক।',
-      clarifyLocality: 'মই ঠাইখন বুজি নাপালোঁ। অনুগ্ৰহ কৰি অঞ্চল, কলনী বা পথৰ নাম কওক।',
+      clarifyLocality: 'অনুগ্ৰহ কৰি কেৱল অঞ্চল, কলনী বা পথৰ নাম কওক।',
       askLandmark: 'ওচৰৰ চিনাকি ঠাই (লেণ্ডমাৰ্ক) কি? নাথাকিলে "বাদ দিয়ক" কওক।',
       askName: 'অনুগ্ৰহ কৰি আপোনাৰ নাম কওক।',
-      clarifyName: 'অনুগ্ৰহ কৰি কেৱল আখৰেৰে আপোনাৰ নাম কওক।',
+      clarifyName: 'অনুগ্ৰহ কৰি কেৱল আপোনাৰ নাম কওক।',
       readBack:
         'মই বিৱৰণবোৰ পুনৰ পঢ়ি শুনাইছোঁ। সমস্যা: {issue}। ঠাই: {locality}{ward}{landmark}। নাম: {name}।',
       readBackWard: ', ৱাৰ্ড {ward}',
@@ -117,7 +114,16 @@ export function withDefaultWording(content: QuestionnaireContent): Questionnaire
     languages: Object.fromEntries(
       LANGUAGES.map((code) => [
         code,
-        { ...DEFAULT_QUESTIONNAIRE.languages[code], ...content.languages?.[code] },
+        {
+          ...DEFAULT_QUESTIONNAIRE.languages[code],
+          ...content.languages?.[code],
+          // Safety disclosure copy is product-controlled and must update existing stored
+          // questionnaire versions when it is shortened or clarified.
+          disclosure: DEFAULT_QUESTIONNAIRE.languages[code].disclosure,
+          clarifyIssue: DEFAULT_QUESTIONNAIRE.languages[code].clarifyIssue,
+          clarifyLocality: DEFAULT_QUESTIONNAIRE.languages[code].clarifyLocality,
+          clarifyName: DEFAULT_QUESTIONNAIRE.languages[code].clarifyName,
+        },
       ]),
     ) as QuestionnaireContent['languages'],
   };

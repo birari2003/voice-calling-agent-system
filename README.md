@@ -7,7 +7,6 @@ NagarSeva is a local-first municipal complaint registration and tracking platfor
 ```text
 frontend/       React + TypeScript + Vite admin application
 backend/        Express + TypeScript API, Sequelize migrations and seeders
-ai-service/     Python FastAPI speech service (speech-to-text, text-to-speech), local only
 ```
 
 Exotel and WhatsApp are not configured.
@@ -16,7 +15,7 @@ Exotel and WhatsApp are not configured.
 
 - Node.js 20 LTS or newer and npm
 - A local MySQL 8 server (for example, managed through phpMyAdmin)
-- Python 3.10+ (only for voice sessions; see `ai-service/README.md`)
+- An ElevenLabs API key with Speech-to-Text and Text-to-Speech permissions for voice sessions
 
 ## Run locally
 
@@ -27,7 +26,7 @@ Exotel and WhatsApp are not configured.
 5. Add the demo organization with `npm run db:seed`.
 6. Run `npm run db:seed:admin` to create the local development administrator.
 7. Start frontend and backend with `npm run dev`.
-8. Optional, for voice sessions: run `npm run setup:ai` once, then `npm run dev:ai` in a second terminal.
+8. Optional, for voice sessions: set `ELEVENLABS_API_KEY` in `backend/.env`.
 
 The Vite frontend is at <http://localhost:5173>. The API health endpoint is <http://localhost:5000/api/v1/health>; it reports API and MySQL status. Manage the local MySQL service and database through your installed MySQL/phpMyAdmin setup.
 
@@ -45,9 +44,6 @@ The Vite frontend is at <http://localhost:5173>. The API health endpoint is <htt
 | `npm run db:migrate:undo`      | Roll back the latest migration                        |
 | `npm run db:seed`              | Apply seeders                                         |
 | `npm test --workspace backend` | Run backend unit tests (dialogue engine, speech gate) |
-| `npm run setup:ai`             | Create the Python environment for the speech service  |
-| `npm run dev:ai`               | Start the local speech service on port 8001           |
-| `npm run test:ai`              | Run the speech service API tests                      |
 
 Sequelize migration configuration lives in `backend/sequelize.config.cjs`; migrations and seeders are stored under `backend/`. Schema changes must be added as new migrations. Do not use Sequelize `sync({ alter: true })`.
 
@@ -69,9 +65,9 @@ Permissions: `sessions:run` (Super Admin, Municipal Admin) and `sessions:read` (
 
 ## Voice sessions (Phase 5)
 
-When the speech service is running, the call studio offers **Voice (microphone)** input. The browser asks for microphone permission only when a voice session starts, and releases the microphone when the session ends or you leave the page. Recording stops automatically after a pause, after 8 seconds with no speech, or after 30 seconds. The assistant's replies are spoken, and listening can resume automatically. Typing is always available as a fallback.
+When ElevenLabs is configured, the call studio offers **Voice (microphone)** input. The browser asks for microphone permission only when a voice session starts, and releases the microphone when the session ends or you leave the page. Recording stops automatically after a pause, after 8 seconds with no speech, or after 30 seconds. The assistant's replies are spoken, and listening can resume automatically. Typing is always available as a fallback.
 
-The backend sends the recording to the speech service and keeps nothing: no audio is written to disk or the database. A transcription is used only if it passes all of these checks:
+The backend sends the recording directly to ElevenLabs and keeps nothing: no audio is written to disk or the database. A transcription is used only if it passes all of these checks:
 
 - its confidence is at least `STT_MIN_CONFIDENCE` (default 0.4);
 - it is in the script of the expected language;
@@ -79,7 +75,7 @@ The backend sends the recording to the speech service and keeps nothing: no audi
 
 Otherwise the assistant asks the citizen to repeat, and the transcript records that the speech was not understood. Confidence is saved on each spoken citizen message. Recognition is never biased towards expected answers, because testing showed a "yes/no" hint could turn "yes" into "no".
 
-Microphone access needs `localhost` or HTTPS. Opening the dev server through a LAN IP over HTTP blocks the microphone. See `ai-service/README.md` for models, licences, and known accuracy limits. Assamese speech recognition does not work with the current model.
+Microphone access needs `localhost` or HTTPS. Opening the dev server through a LAN IP over HTTP blocks the microphone. Validate Assamese, Hindi, and English recognition with native speakers before real-citizen use.
 
 ## Complaint photos (Phase 6)
 
@@ -120,7 +116,7 @@ Every figure is aggregated on the server, and dates are grouped by `REPORT_UTC_O
 - **Tests:** `npm test` runs the backend unit tests, the API integration suite and the browser suite. The integration suite covers the blueprint's 14-step acceptance scenario, organization isolation, role permissions, CSRF and idempotency. The browser suite covers the acceptance scenario in Chrome, WCAG 2.1 AA scans of every page, and phone-width layout. Both run on a throwaway `nagar_seva_test` database. Details are in [docs/OPERATIONS.md](docs/OPERATIONS.md#5-tests).
 - **Monitoring:** JSON logs with a request ID on every response, and the error reference shown to users. Health checks are at `/api/v1/health` (readiness) and `/api/v1/health/live`.
 - **Backups:** `scripts/backup.sh`, `scripts/verify-backup.sh` (tested restore) and `scripts/restore.sh`.
-- **Staging:** `docker-compose.staging.yml` (MySQL, API, speech service, HTTPS web front via Caddy), configured from `deploy/staging.env`.
+- **Staging:** `docker-compose.staging.yml` (MySQL, API and HTTPS web front via Caddy), configured from `deploy/staging.env`.
 - **Security:** findings and accepted risks are in [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md). In production the API refuses to start with development defaults.
 - **Demo:** [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 

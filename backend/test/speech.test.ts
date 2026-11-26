@@ -86,7 +86,7 @@ describe('script check', () => {
   });
 
   it('rejects confident output in an unrelated script', () => {
-    // Observed: Whisper small returned Telugu script for Assamese test audio.
+    // A recognizer can occasionally return a confident transcript in an unrelated script.
     const telugu = 'వాధరావాయిని నినారానిని తాన ఆరినియారారింిరిది';
     assert.equal(matchesExpectedScript(telugu, 'as'), false);
     assert.deepEqual(
@@ -97,7 +97,7 @@ describe('script check', () => {
 });
 
 describe('hallucination check', () => {
-  it('rejects repetition loops and broken characters observed from Whisper on short clips', () => {
+  it('rejects repetition loops and broken characters from speech recognition', () => {
     assert.equal(looksHallucinated('नहीं। नहीं। नहीं। नहीं। नहीं।'), true);
     assert.equal(looksHallucinated('अगर बज़़़़़़़़़़़'), true);
     assert.equal(looksHallucinated('अगर ब\uFFFD'), true);

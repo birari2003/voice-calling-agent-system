@@ -12,9 +12,12 @@ const envSchema = z.object({
   DB_NAME: z.string().min(1),
   DB_USER: z.string().min(1),
   DB_PASSWORD: z.string(),
-  AI_SERVICE_URL: z.string().url().default('http://127.0.0.1:8001'),
-  AI_SERVICE_TOKEN: z.string().default(''),
-  AI_SERVICE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(90000),
+  ELEVENLABS_API_KEY: z.string().default(''),
+  ELEVENLABS_STT_MODEL: z.string().min(1).default('scribe_v3'),
+  ELEVENLABS_TTS_MODEL: z.string().min(1).default('eleven_v4_turbo'),
+  ELEVENLABS_VOICE_ID: z.string().min(1).default('JBFqnCBsd6RMkjVDRZzb'),
+  ELEVENLABS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
+  DEFAULT_LANGUAGE: z.enum(['as', 'hi', 'en']).default('as'),
   // Express "trust proxy": false locally; 1 (one hop) behind nginx/a load balancer.
   TRUST_PROXY: z
     .string()

@@ -1,7 +1,7 @@
-# Staging stack: MySQL, migrations, API, speech service and the HTTPS web front (Caddy).
+# Staging stack: MySQL, API and the HTTPS web front (Caddy).
 #   cp deploy/staging.env.example deploy/staging.env   # then edit every value
 #   docker compose -f docker-compose.staging.yml --env-file deploy/staging.env up -d --build
-# Only Caddy publishes ports; the database, API and speech service stay on the internal network.
+# Only Caddy publishes ports; the database and API stay on the internal network.
 name: nagarseva-staging
 
 x-backend-env: &backend-env
@@ -16,8 +16,10 @@ x-backend-env: &backend-env
   CORS_ORIGIN: ${PUBLIC_URL}
   TRUST_PROXY: '1'
   UPLOAD_DIR: /app/backend/storage/uploads
-  AI_SERVICE_URL: http://ai-service:8001
-  AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Set AI_SERVICE_TOKEN (24+ random characters)}
+  ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:?Set ELEVENLABS_API_KEY}
+  ELEVENLABS_STT_MODEL: ${ELEVENLABS_STT_MODEL:-scribe_v3}
+  ELEVENLABS_TTS_MODEL: ${ELEVENLABS_TTS_MODEL:-eleven_v4_turbo}
+  ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-JBFqnCBsd6RMkjVDRZzb}
   REPORT_UTC_OFFSET: ${REPORT_UTC_OFFSET:-+05:30}
 
 services:
@@ -58,24 +60,6 @@ services:
       mysql: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
 
-  ai-service:
-    build: { context: ai-service }
-    restart: unless-stopped
-    environment:
-      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
-      PRELOAD_MODELS: ${PRELOAD_MODELS:-false}
-      STT_PROVIDER: ${STT_PROVIDER:-whisper}
-      SARVAM_API_KEY: ${SARVAM_API_KEY:-}
-      TTS_PROVIDER: ${TTS_PROVIDER:-mms}
-      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
-      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-JBFqnCBsd6RMkjVDRZzb}
-      STT_FALLBACK_TO_LOCAL: ${STT_FALLBACK_TO_LOCAL:-true}
-    volumes:
-      - speech-models:/models
-    deploy:
-      resources:
-        limits: { memory: 3g }
-
   web:
     build: { context: ., dockerfile: frontend/Dockerfile }
     restart: unless-stopped
@@ -92,5 +76,4 @@ services:
 volumes:
   mysql-data:
   uploads:
-  speech-models:
   caddy-data:

@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
-import { speechService } from '../ai/speech.js';
+import { SpeechServiceError, speechService } from '../ai/speech.js';
 import { assessTranscription } from '../ai/speechGate.js';
 import { env } from '../config/env.js';
 import { localityKeyterms } from '../services/localityTerms.js';
@@ -120,10 +120,6 @@ export async function audioTurnHandler(
   }
 }
 
-/** Small in-memory cache: assistant messages never change, and synthesis is slow on CPU. */
-const speechCache = new Map<string, Buffer>();
-const SPEECH_CACHE_LIMIT = 100;
-
 export async function messageSpeechHandler(
   request: Request,
   response: Response,
@@ -140,19 +136,34 @@ export async function messageSpeechHandler(
   }
   try {
     const orgId = organizationId(request);
-    const key = `${orgId}:${sessionId}:${messageId.data}`;
-    let audio = speechCache.get(key);
-    if (!audio) {
-      const message = await findAssistantMessage(orgId, sessionId, messageId.data);
-      audio = await speechService.synthesize(message.text, message.language);
-      speechCache.set(key, audio);
-      if (speechCache.size > SPEECH_CACHE_LIMIT)
-        speechCache.delete(speechCache.keys().next().value!);
+    const message = await findAssistantMessage(orgId, sessionId, messageId.data);
+    const speech = await speechService.synthesizeStream(message.text, message.language);
+    if (!speech.body) {
+      throw new SpeechServiceError('ElevenLabs returned no audio.', 503, 'SPEECH_EMPTY');
     }
-    response.setHeader('Content-Type', 'audio/wav');
+    response.setHeader('Content-Type', 'audio/mpeg');
     response.setHeader('Cache-Control', 'private, max-age=600');
-    response.send(audio);
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.flushHeaders();
+
+    const reader = speech.body.getReader();
+    try {
+      while (!response.destroyed) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (!response.write(Buffer.from(value))) {
+          await new Promise<void>((resolve) => response.once('drain', resolve));
+        }
+      }
+    } finally {
+      if (response.destroyed) await reader.cancel().catch(() => undefined);
+      else response.end();
+    }
   } catch (error) {
+    if (response.headersSent) {
+      response.destroy(error instanceof Error ? error : undefined);
+      return;
+    }
     sendDomainError(error, response, next);
   }
 }

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sessionsApi } from '../api/sessions';
 
-/**
- * Plays assistant messages in order through the speech service. Synthesis of the next message
- * starts while the current one plays, to keep gaps short on CPU-only machines.
- */
+/** Plays assistant messages in order through ElevenLabs. */
 export function useSpeechPlayback(sessionId: string) {
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState('');
@@ -40,17 +37,21 @@ export function useSpeechPlayback(sessionId: string) {
       const generation = generationRef.current;
       setSpeaking(true);
       setError('');
-      const pending = messageIds.map((id) =>
-        sessionsApi.speech(sessionId, id).then(
-          (blob) => ({ blob }),
-          (caught: unknown) => ({ error: caught }),
-        ),
-      );
       try {
-        for (const item of pending) {
-          const result = await item;
-          if (generation !== generationRef.current || !mountedRef.current) return false;
+        type SpeechResult = { blob: Blob; error?: never } | { blob?: never; error: unknown };
+        const load = (id: number): Promise<SpeechResult> =>
+          sessionsApi.speech(sessionId, id).then(
+            (blob) => ({ blob }),
+            (error: unknown) => ({ error }),
+          );
+
+        // Use credentialed fetch so the protected endpoint always receives the dashboard session
+        // cookie. Generate one next line while the current line plays to remove inter-line gaps.
+        let pending = load(messageIds[0]!);
+        for (let index = 0; index < messageIds.length; index += 1) {
+          const result = await pending;
           if ('error' in result) {
+            if (generation !== generationRef.current || !mountedRef.current) return false;
             setError(
               result.error instanceof Error
                 ? result.error.message
@@ -58,14 +59,18 @@ export function useSpeechPlayback(sessionId: string) {
             );
             return false;
           }
+          if (generation !== generationRef.current || !mountedRef.current) return false;
+          const nextId = messageIds[index + 1];
+          if (nextId !== undefined) pending = load(nextId);
+
           const url = URL.createObjectURL(result.blob);
           try {
             const audio = new Audio(url);
             audioRef.current = audio;
             await new Promise<void>((resolve, reject) => {
               audio.onended = () => resolve();
-              audio.onpause = () => resolve(); // stop() pauses the element
-              audio.onerror = () => reject(new Error('The reply audio could not be played.'));
+              audio.onpause = () => resolve();
+              audio.onerror = () => reject(new Error('The spoken reply could not be played.'));
               audio.play().catch(reject);
             });
           } finally {

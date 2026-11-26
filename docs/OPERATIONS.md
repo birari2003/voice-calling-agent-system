@@ -5,12 +5,12 @@ main [README](../README.md).
 
 ## 1. Components
 
-| Component       | What it does                                         | Port (internal) | Required                          |
-| --------------- | ---------------------------------------------------- | --------------- | --------------------------------- |
-| MySQL 8         | All records (citizens, complaints, sessions, audit)  | 3306            | Yes                               |
-| API (Node)      | Business rules, authentication, file access          | 5000            | Yes                               |
-| Web (Caddy)     | Serves the dashboard, HTTPS, forwards `/api`         | 443 / 80        | Yes                               |
-| Speech (Python) | Speech-to-text and text-to-speech for voice sessions | 8001            | No: text sessions work without it |
+| Component   | What it does                                        | Port (internal) | Required                          |
+| ----------- | --------------------------------------------------- | --------------- | --------------------------------- |
+| MySQL 8     | All records (citizens, complaints, sessions, audit) | 3306            | Yes                               |
+| API (Node)  | Business rules, authentication, file access         | 5000            | Yes                               |
+| Web (Caddy) | Serves the dashboard, HTTPS, forwards `/api`        | 443 / 80        | Yes                               |
+| ElevenLabs  | Cloud speech-to-text and text-to-speech             | HTTPS outbound  | No: text sessions work without it |
 
 Uploaded photos are stored on disk (`UPLOAD_DIR`), not in the database. Back up both.
 
@@ -20,7 +20,6 @@ Docker must be usable by the deploying account (`sudo`, or membership of the `do
 
 ```bash
 cp deploy/staging.env.example deploy/staging.env   # edit every value; this file is gitignored
-openssl rand -hex 24                               # use for AI_SERVICE_TOKEN
 docker compose -f docker-compose.staging.yml --env-file deploy/staging.env up -d --build
 docker compose -f docker-compose.staging.yml --env-file deploy/staging.env ps
 ```
@@ -30,15 +29,14 @@ docker compose -f docker-compose.staging.yml --env-file deploy/staging.env ps
   `PUBLIC_URL` to it and Caddy obtains a Let's Encrypt certificate (ports 80/443 must be reachable).
 - The `migrate` job applies migrations and seeders, and creates the first Super Admin from
   `ADMIN_EMAIL` / `ADMIN_PASSWORD`. It is safe to re-run.
-- Only the web service publishes ports. The database, API and speech service are internal.
-- The first spoken reply downloads about 850 MB of speech models into the `speech-models` volume.
-  Set `PRELOAD_MODELS=true` to do this at startup instead. The speech service needs about 2.5 GB RAM.
+- Only the web service publishes ports. The database and API are internal. The API needs outbound
+  HTTPS access to ElevenLabs for voice sessions.
 
 ### The API refuses to start in production when…
 
 These are intentional safety checks (`backend/src/startupChecks.ts`). The log lists each problem:
 
-- `AI_SERVICE_TOKEN` is missing or shorter than 24 characters;
+- `ELEVENLABS_API_KEY` is missing;
 - `CORS_ORIGIN` or `APP_URL` is not `https://`;
 - the local development account `admin@nagar-seva.local` still has its default password.
 
@@ -103,7 +101,6 @@ Suggested schedule: daily backup via cron (`0 1 * * * /path/scripts/backup.sh`),
 | `npm test --workspace backend`                 | Unit tests: dialogue engine, speech gate, eligibility, CSV                                                                                                     |
 | `npm run test:integration --workspace backend` | API suite on a throwaway `nagar_seva_test` database: the 14-step acceptance scenario, organization isolation, role permissions, CSRF, idempotency, rate limits |
 | `npm run test:e2e`                             | Browser suite (installed Google Chrome): acceptance scenario in the UI, WCAG 2.1 AA scans of every page, phone-width layout                                    |
-| `npm run test:ai`                              | Speech service API tests                                                                                                                                       |
 | `npm test`                                     | Backend unit + integration + browser suites                                                                                                                    |
 
 The integration and browser suites drop and recreate `nagar_seva_test` (any name ending in
@@ -112,8 +109,7 @@ development database.
 
 ## 6. Common tasks
 
-- **Rotate the speech-service token:** set a new `AI_SERVICE_TOKEN` in the env file and restart
-  `backend` and `ai-service` together.
+- **Rotate the ElevenLabs key:** update `ELEVENLABS_API_KEY` and restart the backend.
 - **A user is locked out of sign-in:** failed sign-ins are limited to 10 per 15 minutes per client
   address. Wait, or restart the API (limits are in memory).
 - **Deactivate a staff member:** set `is_active = 0` on their user. Their sessions stop working at

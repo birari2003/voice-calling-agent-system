@@ -184,6 +184,41 @@ describe('corrections, clarification and cancellation', () => {
 });
 
 describe('control words are not data', () => {
+  it('accepts a mixed Hindi-English power complaint as the problem', () => {
+    const { last } = script(['हमारे यहाँ light चली गई है'], {
+      name: 'सीमा शर्मा',
+      language: 'hi',
+    });
+    assert.equal(last.context.state, 'ASK_LOCATION');
+    assert.equal(last.context.collected.issueText, 'हमारे यहाँ light चली गई है');
+    assert.equal(last.context.collected.categorySuggestion, 'Street Lighting');
+  });
+
+  it('keeps the current question when the answer is clearly about another field', () => {
+    const nameAtIssue = script(['मेरा नाम सीमा शर्मा है'], { language: 'hi' });
+    assert.equal(nameAtIssue.last.context.state, 'CLARIFY_ISSUE');
+    assert.equal(nameAtIssue.last.context.collected.issueText, null);
+    assert.equal(nameAtIssue.last.replies[0]!.text, 'कृपया केवल समस्या बताएं।');
+
+    const issueAtLocation = script(['हमारी गली में पानी की पाइप टूट गई है', 'पानी की पाइप टूट गई है'], {
+      name: 'सीमा शर्मा',
+      language: 'hi',
+    });
+    assert.equal(issueAtLocation.last.context.state, 'CLARIFY_LOCATION');
+    assert.equal(issueAtLocation.last.context.collected.locality, null);
+    assert.equal(
+      issueAtLocation.last.replies[0]!.text,
+      'कृपया केवल इलाका, कॉलोनी या सड़क का नाम बताएं।',
+    );
+
+    const issueAtLandmark = script(
+      ['हमारी गली में पानी की पाइप टूट गई है', 'गोविंद नगर', 'पाइप टूट गई है'],
+      { name: 'सीमा शर्मा', language: 'hi' },
+    );
+    assert.equal(issueAtLandmark.last.context.state, 'CLARIFY_LOCATION');
+    assert.equal(issueAtLandmark.last.context.collected.landmark, null);
+  });
+
   it('does not accept "No" or "yes" as a location', () => {
     const { last } = script(['Garbage is lying on the road for days', 'No'], { language: 'en' });
     assert.equal(last.context.state, 'CLARIFY_LOCATION');
@@ -196,6 +231,21 @@ describe('control words are not data', () => {
     assert.equal(extractName('No'), null);
     assert.equal(extractName('हाँ'), null);
     assert.equal(extractName('Noor'), 'Noor');
+  });
+
+  it('clears a landmark when the citizen says a Hindi skip phrase', () => {
+    for (const skip of ['छोड़ें', 'छोड़े।', 'छोड़िए', 'छोड़ दीजिए']) {
+      const context = initialContext('सीमा शर्मा', 'hi');
+      context.state = 'CLARIFY_LOCATION';
+      context.collected.issueText = 'हमारी गली में पानी भर गया है';
+      context.collected.categorySuggestion = 'Drainage';
+      context.collected.locality = 'गोविंद नगर';
+      context.collected.landmark = 'पुराना लैंडमार्क';
+      const result = engine.respond(context, content, skip);
+      assert.equal(result.context.collected.landmark, null);
+      assert.equal(result.context.state, 'AWAIT_CONFIRMATION');
+      assert.doesNotMatch(result.replies[0]!.text, /छोड़|पुराना लैंडमार्क/);
+    }
   });
 });
 

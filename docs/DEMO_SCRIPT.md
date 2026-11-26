@@ -5,9 +5,9 @@ About 20 minutes. Follows the blueprint's end-to-end acceptance scenario. Everyt
 
 ## Before the demo
 
-1. Start the stack (staging, or locally: `npm run dev`, plus `npm run dev:ai` for voice).
+1. Set `ELEVENLABS_API_KEY` in `backend/.env`, then start locally with `npm run dev`.
 2. Check `/api/v1/health` shows `"status":"ok"` (and `speechService: "ok"` for voice).
-3. Run one voice session in advance so the speech models are loaded (the first reply is slow).
+3. Run one voice session in advance to confirm the ElevenLabs key, permissions and selected voice.
 4. Prepare one test citizen with documented consent, a second one without consent, and a
    phone or laptop to open a citizen upload link.
 

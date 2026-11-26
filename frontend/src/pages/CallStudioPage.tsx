@@ -151,7 +151,7 @@ function StartSessionForm({
   const health = useQuery({ queryKey: ['ai-health'], queryFn: sessionsApi.aiHealth });
   const voiceAvailable = health.data?.data.speechService.status === 'available';
   const speechEngine = health.data?.data.speechToText?.engine ?? '';
-  const cloudSpeech = /^(sarvam|elevenlabs)/.test(speechEngine);
+  const cloudSpeech = speechEngine.startsWith('elevenlabs');
   const providerError =
     health.data?.data.speechToText?.lastProviderError ??
     health.data?.data.textToSpeech?.lastProviderError ??
@@ -261,14 +261,14 @@ function StartSessionForm({
       )}
       {voiceAvailable && providerError && (
         <div className="form-error" role="alert">
-          The cloud speech provider is failing, so the slower local engine is being used instead.
-          Reason: {providerError}. Check the API key and its permissions.
+          ElevenLabs is failing. Reason: {providerError}. Check the API key, permissions, quota, and
+          network connection.
         </div>
       )}
       {health.data && !voiceAvailable && (
         <p className="studio-muted">
-          The local speech service is not running, so only text sessions are available. Start it
-          with <code>npm run dev:ai</code>.
+          Voice is not configured, so only text sessions are available. Set{' '}
+          <code>ELEVENLABS_API_KEY</code> in <code>backend/.env</code> and restart the backend.
         </p>
       )}
       {selected && !language && (

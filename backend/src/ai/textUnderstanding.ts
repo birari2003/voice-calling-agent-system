@@ -130,7 +130,11 @@ const SKIP_WORDS = keywordSet([
   'nahi',
   'chhodo',
   'छोड़ें',
+  'छोड़े',
   'छोड़ो',
+  'छोड़िए',
+  'छोड़ दीजिए',
+  'रहने दें',
   'कोई नहीं',
   'नहीं',
   'bad diyok',
@@ -243,6 +247,80 @@ function letterCount(text: string): number {
 export function isSpecificIssue(text: string): boolean {
   const trimmed = text.trim();
   return trimmed.length >= 10 && letterCount(trimmed) >= 6 && tokens(trimmed).length >= 3;
+}
+
+const ISSUE_SIGNAL = new RegExp(
+  [
+    'problem',
+    'issue',
+    'complaint',
+    'broken',
+    'damaged',
+    'leak',
+    'overflow',
+    'blocked',
+    'garbage',
+    'waste',
+    'pothole',
+    'noise',
+    'light',
+    'electricity',
+    'power',
+    'not working',
+    'power cut',
+    'no water',
+    'समस्या',
+    'शिकायत',
+    'खराब',
+    'टूट',
+    'लीक',
+    'भरा',
+    'जाम',
+    'कचरा',
+    'गड्ढा',
+    'पानी',
+    'नहीं',
+    'लाइट',
+    'बिजली',
+    'चली गई',
+    'बंद',
+    'সমস্যা',
+    'অভিযোগ',
+    'বেয়া',
+    'ভাঙ',
+    'পানী',
+    'জাবৰ',
+    'আবৰ্জনা',
+    'গাঁত',
+    'নাই',
+  ].join('|'),
+  'iu',
+);
+
+const NAME_ANSWER_PREFIX = new RegExp(
+  String.raw`^(?:my name is|name is|i am|this is|मेरा नाम|नाम|मैं|मुझे कहते हैं|মোৰ নাম|মই)(?:\s|$)`,
+  'iu',
+);
+
+/** Conservative state guards: reject obvious answers to a different question. */
+export function isRelevantIssue(text: string): boolean {
+  const value = normalize(text);
+  return (
+    isSpecificIssue(text) &&
+    !isControlReply(text) &&
+    !NAME_ANSWER_PREFIX.test(value) &&
+    ISSUE_SIGNAL.test(value)
+  );
+}
+
+export function isRelevantLocation(text: string): boolean {
+  const value = normalize(text);
+  return !isControlReply(text) && !NAME_ANSWER_PREFIX.test(value) && !ISSUE_SIGNAL.test(value);
+}
+
+export function isRelevantLandmark(text: string): boolean {
+  if (isSkip(text)) return true;
+  return isRelevantLocation(text) && tokens(text).length <= 8;
 }
 
 export function cleanFreeText(text: string, maxLength: number): string {
@@ -369,7 +447,14 @@ export function extractName(raw: string): string | null {
     .replace(NAME_PREFIX, '')
     .replace(NAME_SUFFIX, '')
     .trim();
-  if (name.length < 2 || name.length > 80 || isControlReply(name)) return null;
+  if (
+    name.length < 2 ||
+    name.length > 80 ||
+    tokens(name).length > 5 ||
+    isControlReply(name) ||
+    ISSUE_SIGNAL.test(normalize(name))
+  )
+    return null;
   if (!/^[\p{L}\p{M}][\p{L}\p{M}\s.'-]*$/u.test(name)) return null;
   return letterCount(name) >= 2 ? name : null;
 }

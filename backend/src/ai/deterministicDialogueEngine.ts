@@ -3,8 +3,10 @@ import {
   cleanFreeText,
   extractName,
   isCancelRequest,
+  isRelevantIssue,
+  isRelevantLandmark,
+  isRelevantLocation,
   isSkip,
-  isSpecificIssue,
   isUsableLocality,
   parseCorrectionField,
   parseLanguageChoice,
@@ -278,7 +280,7 @@ export class DeterministicDialogueEngine implements DialogueEngine {
     content: QuestionnaireContent,
     input: string,
   ): TurnResult {
-    if (!isSpecificIssue(input))
+    if (!isRelevantIssue(input))
       return this.retry(context, content, 'CLARIFY_ISSUE', wording(context, content).clarifyIssue);
     const issueText = cleanFreeText(input, 2000);
     context.collected.issueText = issueText;
@@ -291,6 +293,13 @@ export class DeterministicDialogueEngine implements DialogueEngine {
     content: QuestionnaireContent,
     input: string,
   ): TurnResult {
+    if (!isRelevantLocation(input))
+      return this.retry(
+        context,
+        content,
+        'CLARIFY_LOCATION',
+        wording(context, content).clarifyLocality,
+      );
     const parsed = parseLocation(input);
     const { collected } = context;
     if (parsed.ward) collected.ward = parsed.ward;
@@ -320,7 +329,18 @@ export class DeterministicDialogueEngine implements DialogueEngine {
     content: QuestionnaireContent,
     input: string,
   ): TurnResult {
-    if (!isSkip(input)) {
+    if (!isRelevantLandmark(input))
+      return this.retry(
+        context,
+        content,
+        'CLARIFY_LOCATION',
+        wording(context, content).askLandmark,
+      );
+    if (isSkip(input)) {
+      // A skipped landmark is an explicit empty answer. Clear any stale value so words such as
+      // "छोड़ें" can never appear as, or preserve, a landmark in the following read-back.
+      context.collected.landmark = null;
+    } else {
       const parsed = parseLocation(input);
       if (parsed.ward && !context.collected.ward) context.collected.ward = parsed.ward;
       const landmark = parsed.landmark ?? parsed.locality ?? null;

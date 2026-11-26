@@ -14,8 +14,8 @@ const BOOTSTRAP_PASSWORD = 'Pass@1234';
 export async function productionProblems(): Promise<string[]> {
   if (env.NODE_ENV !== 'production') return [];
   const problems: string[] = [];
-  if (!env.AI_SERVICE_TOKEN || env.AI_SERVICE_TOKEN.length < 24)
-    problems.push('AI_SERVICE_TOKEN must be set to a random value of at least 24 characters.');
+  if (!env.ELEVENLABS_API_KEY)
+    problems.push('ELEVENLABS_API_KEY must be configured for production voice sessions.');
   for (const origin of env.CORS_ORIGIN.split(',').map((value) => value.trim()))
     if (!origin.startsWith('https://'))
       problems.push(`CORS_ORIGIN must use https in production (got ${origin}).`);
